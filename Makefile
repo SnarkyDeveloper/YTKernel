@@ -10,7 +10,7 @@ kernel:
 
 bootloader: kernel
 	@echo "=== Building FASM Bootloader ==="
-	fasm bootloader/main.fasm BOOTX64.EFI
+	fasm bootloader/main.asm BOOTX64.EFI
 
 clean:
 	cd kernel && cargo clean
