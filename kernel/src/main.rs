@@ -2,21 +2,24 @@
 #![no_main]
 
 mod serial;
+mod renderer;
 
 use core::panic::PanicInfo;
 use core::fmt::Write;
 
 use heapless::String;
 use serial::*;
+use renderer::*;
 
 #[repr(C)]
 pub struct BootInfo {
-    pub framebuffer: *mut u32,
-    pub width: u32,
-    pub height: u32,
-    pub stride: u32,
-    pub format: u32,
+    pub fb_base: *mut u32,  
+    pub fb_width: u32,
+    pub fb_height: u32,
+    pub fb_stride: u32,
+    pub fb_format: u32
 }
+
 
 fn todos() {
     todo!("Write network stack - eh (AMD PCNet & rtl8139 later)");
@@ -28,15 +31,24 @@ fn todos() {
 
 #[unsafe(no_mangle)]
 pub extern "sysv64" fn kernel_main(info: &'static BootInfo) -> ! {
-    unsafe { init_serial(); }
-    todo!("Fix info not sending from the assembly offsets");
-    todos();
+    unsafe { 
+        init_serial(); 
+    }
 
-    print_serial("\n\r=== MELON IS GOONING SUCCESSFULY ===\n\r");
-    print_serial("mommy asmr todo!\n\r");
+    if !info.fb_base.is_null() {
+        unsafe {
+        
+        let total_pixels = (info.fb_stride * info.fb_height) as usize;
+        for i in 0..total_pixels {
+            *info.fb_base.add(i) = 0x00121214;
+        } 
+        draw_string(info, 50, 50, "lesbians <3", 0x00F5A9B8, 10);
+        }
+    }
 
     loop {}
 }
+
 
 #[panic_handler]
 fn panic(_info: &PanicInfo) -> ! {

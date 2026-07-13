@@ -1,2 +1,4 @@
 esp/
 BOOTX64.EFI
+kernel.bin
+main.efi

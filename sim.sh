@@ -20,8 +20,9 @@ qemu-system-x86_64 \
     -net none \
     -serial stdio \
     -display default \
-    -vga std
-
+    -vga std \
+	-d int \
+	-no-reboot
 
 # qemu-system-x86_64 \
 #     -bios "$OVMF_PATH" \
