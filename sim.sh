@@ -2,6 +2,7 @@
 set -e
 
 make clean
+export INVID_INSTANCE_URL="${INVID_INSTANCE_URL:-example.com}"
 make
 
 mkdir -p esp/EFI/BOOT
@@ -22,7 +23,8 @@ qemu-system-x86_64 \
     -display default \
     -vga std \
 	-d int \
-	-no-reboot
+	-no-reboot \
+	-s -S
 
 # qemu-system-x86_64 \
 #     -bios "$OVMF_PATH" \

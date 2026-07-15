@@ -1,4 +1,5 @@
 [target.x86_64-unknown-none]
 rustflags = [
-    "-C", "link-arg=-T../linker.ld"
+    "-C", "relocation-model=static",
+	"-C", "link-arg=-T../linker.ld"
 ]

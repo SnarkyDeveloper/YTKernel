@@ -55,10 +55,28 @@ main:
     lea r10, [DescriptorVersion]
     sub rsp, 40
     mov [rsp + 32], r10           	
-	call qword [rax + 32]         ; BootServices->GetMemoryMap
+	call qword [rax + 56]         ; BootServices->GetMemoryMap
     add rsp, 40
+	
+	lea rax, [MemMap]
+	mov [BootInfoStruct + 24], rax        ; memory_map (pointer)
 
-    mov rax, [BootServices]
+	mov rax, [MemMapSize]
+	mov [BootInfoStruct + 32], rax        ; memory_map_size (value)
+
+	mov rax, [DescriptorSize]
+	mov [BootInfoStruct + 40], rax        ; descriptor_size (value)
+
+	mov eax, [DescriptorVersion]
+	mov [BootInfoStruct + 48], eax        ; descriptor_version (value)
+   
+	mov qword [kernel_start_addr], 0x100000
+
+	mov rax, 0x100000
+	add rax, kernel_size
+	mov [kernel_end_addr], rax
+
+	mov rax, [BootServices]
     mov rcx, [ImageHandle]
     mov rdx, [MapKey]             ; weird ass fucking auth
     sub rsp, 40
@@ -112,6 +130,13 @@ fb_height:         dd 0          ; (4 bytes)
 fb_stride:         dd 0          ; (4 bytes)
 fb_format:         dd 0          ; (4 bytes)
 
+memory_map:           dq 0          ; +24
+memory_map_size:      dq 0          ; +32
+descriptor_size:      dq 0          ; +40
+descriptor_version:   dd 0          ; +48
+dd 0 ; alignment padding
+kernel_start_addr:     dq 0
+kernel_end_addr:       dq 0
 
 align 16
 kernel_start:
