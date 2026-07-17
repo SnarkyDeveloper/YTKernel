@@ -11,3 +11,7 @@ minipng = { version = "0.1", default-features = false }
 [profile.release]
 panic = "abort"
 lto = true # link-time optimization
+debug = true            # Force cargo to generate symbols (-g) even in release mode
+# debug-assertions = true # Keep panic/overflow checks active so allocation loops catch bugs
+# overflow-checks = true  # Catch bad allocation math immediately
+

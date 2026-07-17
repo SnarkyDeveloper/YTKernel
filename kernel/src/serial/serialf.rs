@@ -56,27 +56,32 @@ pub fn print_serial(string: &str) {
 }
 
 
-static mut GLOBAL_TEST_BUF: [u8; 10] = [0u8; 10];
-
-pub fn print_u32(prefix: &str, mut n: u32) {
+pub fn print_u64(prefix: &str, mut n: u64) {
     print_serial(prefix);
     
+    if n == 0 {
+        unsafe { print_char(b'0'); }
+        return;
+    }
+
+    let mut storage: u64 = 0;
+    let mut digits = 0;
+
+    while n > 0 {
+        storage = (storage << 8) | ((b'0' + (n % 10) as u8) as u64);
+        n /= 10;
+        digits += 1;
+    }
+
     unsafe {
-        let mut i = 10;
-
-        if n == 0 {
-            print_char(b'0');
-            return;
-        }
-
-        while n > 0 {
-            i -= 1;
-            GLOBAL_TEST_BUF[i] = b'0' + (n % 10) as u8;
-            n /= 10;
-        }
-
-        for c in &GLOBAL_TEST_BUF[i..] {
-            print_char(*c);
+        for _ in 0..digits {
+            let c = (storage & 0xFF) as u8;
+            print_char(c);
+            storage >>= 8;
         }
     }
+}
+
+pub fn print_u32(prefix: &str, mut n: u32) {
+    print_u64(prefix, n as u64)
 }

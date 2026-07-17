@@ -6,6 +6,7 @@ mod serial;
 mod renderer;
 mod memory;
 
+use core::mem::{size_of, offset_of};
 use core::panic::PanicInfo;
 
 use serial::*;
@@ -25,7 +26,7 @@ pub struct BootInfo {
     pub memory_map_size: usize, // +32
     pub descriptor_size: usize, // +40
     pub descriptor_version: u32, // +48
-
+    _padding: u32, 
     pub kernel_start: u64,       // +52
     pub kernel_end: u64,         // +60
 }
@@ -44,33 +45,55 @@ pub unsafe fn dump_memory_map(info: &BootInfo) {
     let mut ptr = info.memory_map;
 
     let end = info.memory_map.add(info.memory_map_size);
-
+    print_u32("desc size=", core::mem::size_of::<memory::pmm::EfiMemoryDescriptor>() as u32);
     while ptr < end {
         let desc = &*(ptr as *const memory::pmm::EfiMemoryDescriptor);
 
-        print_u32("\ntype: ", desc.ty);
-        // print_u32("pages low: ", desc.number_of_pages as u32);
+        print_u32("\npages low: ", desc.number_of_pages as u32);
+        print_u32(" & type: ", desc.ty);
 
         ptr = ptr.add(info.descriptor_size);
     }
 }
 
+fn print_info(info: &BootInfo) {
+
+    print_u32("BootInfo size=", size_of::<BootInfo>() as u32);
+
+    print_u32("off mmap=", offset_of!(BootInfo, memory_map) as u32);
+    print_u32("off mapsz=", offset_of!(BootInfo, memory_map_size) as u32);
+    print_u32("off descsz=", offset_of!(BootInfo, descriptor_size) as u32);
+    print_u32("off descver=", offset_of!(BootInfo, descriptor_version) as u32);
+    print_u32("off kstart=", offset_of!(BootInfo, kernel_start) as u32);
+    print_u32("off kend=", offset_of!(BootInfo, kernel_end) as u32);
+    print_u32("\nwidth: ", info.fb_width);
+    print_u32("\nheight: ", info.fb_height);
+    print_u32("\nstride: ", info.fb_stride);
+    print_u32("\nformat: ", info.fb_format);
+    
+    print_u32("\nmem map: ", info.memory_map as u32);
+    print_u32("\nmem map size: ", info.memory_map_size as u32);
+    print_u32("\ndesc size: ", info.descriptor_size as u32);
+    print_u32("\ndesc ver: ", info.descriptor_version as u32);
+}
+
 #[unsafe(no_mangle)]
-pub extern "sysv64" fn kernel_main(info: &'static BootInfo) -> ! {
+pub extern "C" fn kernel_main(info_ptr: &'static BootInfo) -> ! {
+    let info = unsafe { core::ptr::read(info_ptr) };
     unsafe { 
         init_serial(); 
     }
-    // print_u32("main size=", info.memory_map_size as u32);
-    // print_u32("kernel start: ", info.kernel_start as u32);
-    // print_u32("kernel end: ", info.kernel_end as u32);
-    // unsafe { dump_memory_map(info); }
+    
+    // unsafe { dump_memory_map(&info); }
+    // print_info(&info);
+
     unsafe {
-        pmm::init(info);
+        pmm::init(&info);
         pmm::reserve(info.kernel_start as usize, info.kernel_end as usize);
         if let Some(page) = pmm::alloc_page() {
-            // print_u32("Allocated page at: ", page as u32);
+            print_u32("\nAllocated page at: ", page as u32);
         } else {
-            print_serial("Failed to allocate page\n");
+            print_serial("\nFailed to allocate page");
         }
 
         // let fb_start = info.fb_base as usize;
@@ -82,26 +105,24 @@ pub extern "sysv64" fn kernel_main(info: &'static BootInfo) -> ! {
         //
         // pmm::reserve(fb_start, fb_start + fb_size);
     }
-    // print_u32("mem add up: ", (info.memory_map_size + info.descriptor_size + info.descriptor_version as usize) as u32);
-    // print_u32("mem map: ", info.memory_map_size as u32);
-    // print_u32("desc size: ", info.descriptor_size as u32);
-    // print_u32("desc ver: ", info.descriptor_version as u32);
-    // print_u32("width: ", info.fb_width);
-    // print_u32("height: ", info.fb_height);
-    // print_u32("stride: ", info.fb_stride);
-    // print_u32("format: ", info.fb_format);
 
-    // if !info.fb_base.is_null() {
-    //     unsafe {
-    //     
-    //     let total_pixels = (info.fb_stride * info.fb_height) as usize;
-    //     for i in 0..total_pixels {
-    //         *info.fb_base.add(i) = 0x00121214;
-    //     } 
-    //     // draw_image(info, IMAGE, 50, 50);
-    //     draw_string(info, 50, 50, "ily rust <3", 0x80D34516, 10);
-    //     }
-    // }
+    let convert = |hex: u32, op: u32| {
+        let clamped_op = if op > 100 { 100 } else { op }; 
+        let alpha = (clamped_op * 255) / 100;
+        (alpha << 24) | (hex & 0x00FFFFFF)
+    };
+   
+    if !info.fb_base.is_null() {
+        unsafe {
+        
+        let total_pixels = (info.fb_stride * info.fb_height) as usize;
+        for i in 0..total_pixels {
+            *info.fb_base.add(i) = 0x00121214;
+        } 
+        // draw_image(info, IMAGE, 50, 50);
+        draw_string(&info, info.fb_width/4 + 10, info.fb_height/4 , "YTKernel", convert(0xCD201F, 0), 10);
+        }
+    }
 
     loop {}
 }

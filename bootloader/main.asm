@@ -47,6 +47,9 @@ main:
     cld
     rep movsb
 
+.retry_exit: ; loop check 
+    mov qword [MemMapSize], 8192  
+
     mov rax, [BootServices]
     lea rcx, [MemMapSize]
     lea rdx, [MemMap]
@@ -55,42 +58,40 @@ main:
     lea r10, [DescriptorVersion]
     sub rsp, 40
     mov [rsp + 32], r10           	
-	call qword [rax + 56]         ; BootServices->GetMemoryMap
+    call qword [rax + 56]         ; BootServices->GetMemoryMap
     add rsp, 40
-	
-	lea rax, [MemMap]
-	mov [BootInfoStruct + 24], rax        ; memory_map (pointer)
 
-	mov rax, [MemMapSize]
-	mov [BootInfoStruct + 32], rax        ; memory_map_size (value)
-
-	mov rax, [DescriptorSize]
-	mov [BootInfoStruct + 40], rax        ; descriptor_size (value)
-
-	mov eax, [DescriptorVersion]
-	mov [BootInfoStruct + 48], eax        ; descriptor_version (value)
-   
-	mov qword [kernel_start_addr], 0x100000
-
-	mov rax, 0x100000
-	add rax, kernel_size
-	mov [kernel_end_addr], rax
-
-	mov rax, [BootServices]
+    mov rax, [BootServices]
     mov rcx, [ImageHandle]
-    mov rdx, [MapKey]             ; weird ass fucking auth
+    mov rdx, [MapKey]             
     sub rsp, 40
-	call qword [rax + 232]        ; BootServices->ExitBootServices
+    call qword [rax + 232]        ; BootServices->ExitBootServices
     add rsp, 40
-	
-	cli
-	cld
-    mov rsp, 0x90000              ; move stack far far away from my beautiful amazing awesome kernel 
-   	
-	sub rsp, 8
-	lea rdi, [BootInfoStruct]      ; pass boot info struct to kernel
-    mov rax, 0x100000             ; read linker.ld 
-	jmp rax                       ; mommy rust <3
+
+    test rax, rax ; if aint right retry
+    jnz .retry_exit
+
+    cli
+    cld
+
+    lea rax, [MemMap]
+    mov [BootInfoStruct + 24], rax        
+    mov rax, [MemMapSize]
+    mov [BootInfoStruct + 32], rax        
+    mov rax, [DescriptorSize]
+    mov [BootInfoStruct + 40], rax        
+    mov eax, [DescriptorVersion]
+    mov [BootInfoStruct + 48], eax        
+   
+    mov qword [kernel_start_addr], 0x100000
+    mov rax, 0x100000
+    add rax, kernel_size
+    mov [kernel_end_addr], rax
+    lea rdi, [BootInfoStruct]      
+
+	mov rax, 0x100000             ; run away darlinggg
+    push 0
+    jmp rax                       ; mommy rust <3
 
 .error:
 	xor rax, rax
@@ -107,12 +108,11 @@ ImageHandle:       dq 0
 SystemTable:       dq 0
 BootServices:      dq 0
 
-; mem offsets for uefi
-MemMapSize:        dq 8192        ; upper bounds
+MemMapSize:        dq 16384        
 MapKey:            dq 0
 DescriptorSize:    dq 0
 DescriptorVersion: dd 0
-MemMap:            times 8192 db 0
+MemMap:            times 16384 db 0  
 
 GOP_GUID:
 	dd 0x9042A9DE          ; (4 bytes)
