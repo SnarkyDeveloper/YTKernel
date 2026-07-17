@@ -82,6 +82,6 @@ pub fn print_u64(prefix: &str, mut n: u64) {
     }
 }
 
-pub fn print_u32(prefix: &str, mut n: u32) {
+pub fn print_u32(prefix: &str, n: u32) {
     print_u64(prefix, n as u64)
 }

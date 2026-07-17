@@ -1,6 +1,6 @@
 use crate::{
     BootInfo,
-    serial::{print_char, print_serial, print_u32},
+    serial::{print_u32},
 };
 
 pub const PAGE_SIZE: usize = 4096;
