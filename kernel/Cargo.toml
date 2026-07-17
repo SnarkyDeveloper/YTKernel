@@ -4,9 +4,12 @@ version = "0.2.2" # graphics & PMM, 2 commits
 edition = "2024"
 
 [dependencies]
+embedded-graphics = "0.8.2"
 heapless = "0.9.3"
 itoa = "1.0.18"
 minipng = { version = "0.1", default-features = false }
+shiguredo_mp4 = { version = "2026.3.0", default-features = false }
+tinybmp = "0.7.0"
 
 [profile.release]
 panic = "abort"

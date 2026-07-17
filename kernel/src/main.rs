@@ -5,6 +5,7 @@
 mod serial;
 mod renderer;
 mod memory;
+mod drivers;
 
 use core::mem::{size_of, offset_of};
 use core::panic::PanicInfo;
@@ -31,6 +32,7 @@ pub struct BootInfo {
     pub kernel_end: u64,         // +60
 }
 
+#[allow(dead_code)]
 fn todos() {
     todo!("Write network stack - eh (AMD PCNet & rtl8139 later)");
     todo!("Add tls stack here");
@@ -40,7 +42,9 @@ fn todos() {
 }
 
 static IMAGE: &[u8] = include_bytes!("../assets/catgirl.png");
+// static VIDEO: &[u8] = include_bytes!("../assets/badapple.mp4");
 
+#[allow(dead_code)]
 pub unsafe fn dump_memory_map(info: &BootInfo) {
     let mut ptr = info.memory_map;
 
@@ -56,6 +60,7 @@ pub unsafe fn dump_memory_map(info: &BootInfo) {
     }
 }
 
+#[allow(dead_code)]
 fn print_info(info: &BootInfo) {
 
     print_u32("BootInfo size=", size_of::<BootInfo>() as u32);
@@ -77,6 +82,7 @@ fn print_info(info: &BootInfo) {
     print_u32("\ndesc ver: ", info.descriptor_version as u32);
 }
 
+
 #[unsafe(no_mangle)]
 pub extern "C" fn kernel_main(info_ptr: &'static BootInfo) -> ! {
     let info = unsafe { core::ptr::read(info_ptr) };
@@ -91,19 +97,20 @@ pub extern "C" fn kernel_main(info_ptr: &'static BootInfo) -> ! {
         pmm::init(&info);
         pmm::reserve(info.kernel_start as usize, info.kernel_end as usize);
         if let Some(page) = pmm::alloc_page() {
-            print_u32("\nAllocated page at: ", page as u32);
+            print_u32("Allocated page at: ", page as u32);
+            print_serial("\n")
         } else {
             print_serial("\nFailed to allocate page");
         }
 
-        // let fb_start = info.fb_base as usize;
-        //
-        // let fb_size =
-        //     info.fb_stride as usize *
-        //     info.fb_height as usize *
-        //     4;
-        //
-        // pmm::reserve(fb_start, fb_start + fb_size);
+        let fb_start = info.fb_base as usize;
+
+        let fb_size =
+            info.fb_stride as usize *
+            info.fb_height as usize *
+            4;
+
+        pmm::reserve(fb_start, fb_start + fb_size);
     }
 
     let convert = |hex: u32, op: u32| {
@@ -114,16 +121,12 @@ pub extern "C" fn kernel_main(info_ptr: &'static BootInfo) -> ! {
    
     if !info.fb_base.is_null() {
         unsafe {
-        
-        let total_pixels = (info.fb_stride * info.fb_height) as usize;
-        for i in 0..total_pixels {
-            *info.fb_base.add(i) = 0x00121214;
-        } 
-        // draw_image(info, IMAGE, 50, 50);
+        clear_screen(&info);
+        draw_png(&info, IMAGE, 50, 50);
         draw_string(&info, info.fb_width/4 + 10, info.fb_height/4 , "YTKernel", convert(0xCD201F, 0), 10);
         }
     }
-
+    
     loop {}
 }
 

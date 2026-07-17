@@ -1,12 +1,12 @@
 use crate::{
     BootInfo,
-    serial::{print_u32},
+    serial::{print_serial, print_u32},
 };
 
 pub const PAGE_SIZE: usize = 4096;
 pub const EFI_CONVENTIONAL_MEMORY: u32 = 7;
 
-const BITMAP_SIZE: usize = 393216; 
+const BITMAP_SIZE: usize = ((12 * 1024 * 1024 * 1024) / PAGE_SIZE) / 8; // first # = gb 
 static mut BITMAP: [u8; BITMAP_SIZE] = [0; BITMAP_SIZE];
 
 const MAX_PAGES: usize = BITMAP_SIZE * 8;
@@ -42,6 +42,12 @@ pub unsafe fn init(info: &BootInfo) {
         ptr = ptr.add(info.descriptor_size);
     }
 
+    let mb_pages = 1024 * 1024 / PAGE_SIZE; 
+    let safety_end = mb_pages.min(MAX_PAGES);
+    for page in 0..safety_end {
+        mark_used(page);
+    }
+
     let mut free = 0;
     for page in 0..MAX_PAGES {
         if !is_used(page) {
@@ -50,6 +56,13 @@ pub unsafe fn init(info: &BootInfo) {
     }
 
     print_u32("Bitmap free pages=", free);
+    let total_mb = (free * PAGE_SIZE as u32) / (1024 * 1024);
+    let free_gb = total_mb / 1024;
+    let free_mb = total_mb % 1024;
+
+    print_u32("\nAvailable memory=", free_gb);
+    print_u32(" gb & ", free_mb);
+    print_serial(" mb\n");
 
     mark_used(0);
 }
@@ -57,9 +70,6 @@ pub unsafe fn init(info: &BootInfo) {
 pub unsafe fn reserve(start: usize, end: usize) {
     let first = start / PAGE_SIZE;
     let last = (end + PAGE_SIZE - 1) / PAGE_SIZE;
-
-    print_u32("Reserve first=", first as u32);
-    print_u32(" last=", last as u32);
 
     for page in first..last {
         mark_used(page);
@@ -73,7 +83,7 @@ pub unsafe fn alloc_page() -> Option<usize> {
                 let page = byte * 8 + bit;
 
                 if !is_used(page) {
-                    print_u32("Alloc page=", page as u32);
+                    mark_used(page);
                     return Some(page * PAGE_SIZE);
                 }
             }
@@ -82,6 +92,35 @@ pub unsafe fn alloc_page() -> Option<usize> {
 
     None
 }
+
+pub unsafe fn alloc_cont_pages(count: usize) -> Option<usize> {
+    if count == 0 { return None; }
+    
+    let mut page = 0;
+    while page <= MAX_PAGES - count {
+        // memory continous found?
+        let mut mcf = true;
+        for offset in 0..count {
+            if is_used(page + offset) {
+                page += offset + 1;
+                mcf = false;
+                break;
+            } else {
+                if page == 0 { page+= 1; }
+            }
+        }
+
+        if mcf {
+            for p in page..(page + count) {
+                mark_used(p);
+            }
+            return Some(page * PAGE_SIZE);
+        }
+    }
+
+    None
+}
+
 
 pub unsafe fn free_page(addr: usize) {
     mark_free(addr / PAGE_SIZE);

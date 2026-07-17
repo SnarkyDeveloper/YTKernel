@@ -1,6 +1,6 @@
 .PHONY: all clean kernel bootloader iso
 
-all: iso
+all: bootloader
 
 kernel:
 	@echo "=== Building Rust Kernel ==="
@@ -52,7 +52,7 @@ clean:
 
 
 
-release: all
+release: iso
 	glab release create "v$$(cargo metadata --manifest-path kernel/Cargo.toml --format-version 1 | jq -r '.packages[] | select(.name=="kernel") | .version')" \
 		--name "Release $$(date +%Y-%m-%d)" \
 		--notes "Release $$(date +%Y-%m-%d)" \

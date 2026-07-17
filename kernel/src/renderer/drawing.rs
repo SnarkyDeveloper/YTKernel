@@ -1,6 +1,14 @@
 use crate::BootInfo;
 use crate::renderer::bitmap::*;
 
+pub unsafe fn draw_pixel(info: &BootInfo, x: u32, y: u32, color: u32) {
+    if info.fb_base.is_null() { return; }
+    if x >= info.fb_width || y >= info.fb_height { return; }
+
+    let pixel_ptr: *mut u32 = info.fb_base.add((y * info.fb_stride + x) as usize);
+    *pixel_ptr = color;
+}
+
 pub unsafe fn draw_char(info: &BootInfo, start_x: u32, start_y: u32, c: char, color: u32, scale: u32) {
     if info.fb_base.is_null() || scale == 0 { return; }
 
@@ -63,6 +71,17 @@ pub unsafe fn draw_string(info: &BootInfo, start_x: u32, mut y: u32, s: &str, co
         unsafe { draw_char(info, x, y, c, color, scale); }
         
         x += char_size;
+    }
+}
+
+pub unsafe fn clear_screen(info: &BootInfo) {
+    if info.fb_base.is_null() { return; }
+
+    for y in 0..info.fb_height {
+        let row_start: *mut u32 = info.fb_base.add((y * info.fb_stride) as usize);
+        for x in 0..info.fb_width {
+            *row_start.add(x as usize) = 0x121214;
+        }
     }
 }
 
