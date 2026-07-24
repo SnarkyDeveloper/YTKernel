@@ -8,7 +8,6 @@ use alloc::vec;
 use crate::{BootInfo, renderer::draw_pixel};
 
 
-
 pub unsafe fn draw_png(info: &BootInfo, image_bytes: &[u8], x: usize, y: usize) {
     if info.fb_base.is_null() {
         return;

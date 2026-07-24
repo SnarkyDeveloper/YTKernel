@@ -138,8 +138,12 @@ dd 0 ; alignment padding
 kernel_start_addr:     dq 0
 kernel_end_addr:       dq 0
 
-align 16
+
+section '.kernel' code readable writeable executable
+
+align 4096 
 kernel_start:
-    file 'kernel.bin'             ; hardcoding :sob: 
+    file 'kernel.bin'
 kernel_end:
+
 kernel_size = kernel_end - kernel_start

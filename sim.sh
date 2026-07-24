@@ -26,7 +26,10 @@ qemu-system-x86_64 \
 	-vga std \
 	-d int \
 	-no-reboot \
+	-audiodev none,id=snd0 -device AC97,audiodev=snd0
+
 	# -s -S
+	# -d guest_errors \
 
 # qemu-system-x86_64 \
 #     -bios "$OVMF_PATH" \

@@ -1,7 +1,7 @@
 use core::arch::asm;
 use heapless::Vec;
 
-pub const MAX_PCI_DEVICES: usize = 64;
+use crate::serial::print_u32;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct PciAddress {
@@ -118,23 +118,30 @@ pub fn check_device(bus: u8, device: u8, function: u8) -> Option<PciDevice> {
     }
 }
 
-pub fn scan_pci_bus() -> Vec<PciDevice, MAX_PCI_DEVICES> {
-    let mut devices = Vec::new();
 
+const MAX_PCI_DEVICES: usize = 32;
+
+pub fn scan_pci() -> Vec<PciDevice, MAX_PCI_DEVICES> {
+    let mut devices = Vec::<PciDevice, MAX_PCI_DEVICES>::new();
     for bus in 0..=255 {
         for device in 0..32 {
-            if let Some(pci_dev) = check_device(bus, device, 0) {
-                let _ = devices.push(pci_dev);
-                
+            for function in 0..8 {
                 unsafe {
-                    let header_reg = pci_read_u32(bus, device, 0, 0x0C);
-                    let header_type = ((header_reg >> 16) & 0xFF) as u8;
-                    
-                    // muttifunc?
-                    if (header_type & 0x80) != 0 {
-                        for function in 1..8 {
-                            if let Some(func_dev) = check_device(bus, device, function) {
-                                let _ = devices.push(func_dev);
+                    let reg0 = pci_read_u32(bus, device, function, 0x00);
+                    let vendor_id = (reg0 & 0xFFFF) as u16;
+
+                    if vendor_id != 0xFFFF {
+                        let device_id = ((reg0 >> 16) & 0xFFFF) as u16;
+                        let dev = check_device(bus, device, function);
+                        if dev.is_some() {
+                            devices.push(dev.unwrap()).unwrap();
+                        }
+                       
+                        if function == 0 {
+                            let reg3 = pci_read_u32(bus, device, 0, 0x0C);
+                            let header_type = ((reg3 >> 16) & 0xFF) as u8;
+                            if (header_type & 0x80) == 0 {
+                                break;
                             }
                         }
                     }
@@ -143,4 +150,14 @@ pub fn scan_pci_bus() -> Vec<PciDevice, MAX_PCI_DEVICES> {
         }
     }
     devices
+}
+
+pub unsafe fn write_reg(registers: *mut u32, offset: usize, value: u32) {
+    let reg_ptr = registers.add(offset / 4);
+    core::ptr::write_volatile(reg_ptr, value);
+}
+
+pub unsafe fn read_reg(registers: *mut u32, offset: usize) -> u32 {
+    let reg_ptr = registers.add(offset / 4);
+    core::ptr::read_volatile(reg_ptr)
 }

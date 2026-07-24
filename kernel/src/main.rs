@@ -13,6 +13,9 @@ use core::panic::PanicInfo;
 use serial::*;
 use renderer::*;
 
+use crate::drivers::{Bar, check_device, scan_pci};
+use crate::drivers::audio::ac97::consts::{AC97_MASTER_VOL, AC97_PCM_VOL};
+use crate::drivers::audio::ac97::driver::Ac97Driver;
 use crate::memory::pmm;
 
 #[repr(C)]
@@ -118,16 +121,62 @@ pub extern "C" fn kernel_main(info_ptr: &'static BootInfo) -> ! {
         let alpha = (clamped_op * 255) / 100;
         (alpha << 24) | (hex & 0x00FFFFFF)
     };
-   
+
     if !info.fb_base.is_null() {
         unsafe {
         clear_screen(&info);
-        draw_png(&info, IMAGE, 50, 50);
+        // draw_png(&info, IMAGE, 50, 50);
         draw_string(&info, info.fb_width/4 + 10, info.fb_height/4 , "YTKernel", convert(0xCD201F, 0), 10);
         }
     }
-    
-    loop {}
+
+
+   
+    let mut base_address: *mut u32 = core::ptr::null_mut();
+
+    let ac97_pci_device = scan_pci().into_iter().find(|e| {
+        if e.class_code != 0x04 || e.subclass_code != 0x01 {
+            return false;
+        }
+
+        let addr: *mut u32 = match e.bars[0] {
+            Bar::Memory(addr) => {
+                print_u32("Found AC97 device memory at: ", addr as u32);
+                addr as *mut u32
+            }
+            Bar::Io(addr) => {
+                print_u32("Found AC97 device IO at: ", addr as u32);
+                addr as *mut u32
+            }
+            Bar::None => {
+                print_serial("Found AC97 device with no BAR0\n");
+                core::ptr::null_mut()
+            }
+        };
+
+        if !addr.is_null() {
+            base_address = addr;
+            return true;
+        }
+        
+        false
+    });
+
+// if !base_address.is_null() {
+//     let mut ac97_driver = Ac97Driver::new(base_address);
+//     unsafe {
+//         let d = ac97_driver.initialize().unwrap();
+//         d.set_volume(AC97_MASTER_VOL, 80, 80);
+//         d.set_mute(AC97_MASTER_VOL, false);
+//         d.set_volume(AC97_PCM_VOL, 100, 100);
+//         d.set_mute(AC97_PCM_VOL, false);
+//     }
+// }
+
+
+    loop {
+
+    }
 }
 
 
